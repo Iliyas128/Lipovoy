@@ -254,6 +254,14 @@ header button:hover, .userLink:hover { opacity: 0.6; }
   text-transform: uppercase;
   opacity: 0.92;
 }
+
+@media (min-width: 769px) {
+  .hero {
+    height: 68vh;
+    min-height: 400px;
+    max-height: 600px;
+  }
+}
 .shopBtn {
   display: inline-block;
   background: #fff;
