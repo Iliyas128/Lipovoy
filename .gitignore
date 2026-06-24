@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# Логи и кэш
+*.log
+npm-debug.log*
+.vite/
+.DS_Store
+Thumbs.db
