@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Lenis from "lenis";
 
 function canUseSmoothScroll() {
@@ -8,6 +8,14 @@ function canUseSmoothScroll() {
 
 export function useLenis(enabled = true) {
   const lenisRef = useRef(null);
+
+  const scrollToTop = useCallback((immediate = true) => {
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(0, { immediate });
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: immediate ? "auto" : "smooth" });
+  }, []);
 
   useEffect(() => {
     if (!canUseSmoothScroll()) return;
@@ -43,4 +51,6 @@ export function useLenis(enabled = true) {
     if (enabled) lenis.start();
     else lenis.stop();
   }, [enabled]);
+
+  return scrollToTop;
 }

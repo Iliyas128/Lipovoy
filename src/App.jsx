@@ -1115,7 +1115,13 @@ function Shell() {
   const [hasSeenIntro, setHasSeenIntro] = useState(globalIntroSeen);
   const showIntroNow = isHome && !hasSeenIntro;
 
-  useLenis(!showIntroNow && !open && !menuOpen && !logoutOpen);
+  const scrollToTop = useLenis(!showIntroNow && !open && !menuOpen && !logoutOpen);
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/product/")) {
+      scrollToTop();
+    }
+  }, [location.pathname, scrollToTop]);
 
   useEffect(() => {
     const locked = open || menuOpen || logoutOpen;
