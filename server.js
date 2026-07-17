@@ -17,6 +17,7 @@ import {
 } from "./server/auth.js";
 import { searchProducts } from "./server/search.js";
 import { validateLoginInput, validateRegisterInput } from "./server/validate.js";
+import { handleTelegramUpdate, telegramEnabled } from "./server/telegram.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -88,6 +89,16 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 const memoryUsers = new Map();
+
+const orderSchema = new mongoose.Schema({
+  orderId: { type: String, unique: true },
+  items: Array,
+  total: Number,
+  status: { type: String, default: "awaiting_payment" },
+  userEmail: String,
+}, { timestamps: true });
+const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
+const memoryOrders = new Map();
 
 const CATEGORY_CATALOG = {
   Outerwear: "outerwear",
@@ -472,13 +483,73 @@ app.delete("/api/products/:slug", requireAdmin, async (q, r) => {
 });
 
 app.post("/api/checkout", async (q, r) => {
-  const products = await all();
-  const sum = (q.body.items || []).reduce((s, i) => s + (products.find(p => p.slug === i.slug)?.price || 0) * (i.quantity || 1), 0);
-  r.json({ status: "reserved", orderId: `NR-${Date.now().toString(36).toUpperCase()}`, total: sum });
+  try {
+    const products = await all();
+    const rawItems = q.body.items || [];
+    const items = rawItems.map((i) => {
+      const p = products.find((x) => x.slug === i.slug);
+      const qty = Math.max(1, Number(i.qty || i.quantity) || 1);
+      return {
+        slug: i.slug,
+        name: p?.name || i.name || i.slug,
+        size: i.size || "",
+        qty,
+        price: p?.price || Number(i.price) || 0,
+        image: p?.image || i.image || "",
+      };
+    }).filter((i) => i.slug);
+    const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+    const orderId = `LP-${Date.now().toString(36).toUpperCase()}`;
+    const payload = {
+      orderId,
+      items,
+      total,
+      status: "awaiting_payment",
+      userEmail: q.user?.email || q.body.email || "",
+    };
+
+    if (isMongoReady()) await Order.create(payload);
+    else memoryOrders.set(orderId, payload);
+
+    const bot = (process.env.TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
+    r.json({
+      status: "awaiting_payment",
+      orderId,
+      total,
+      telegramUrl: bot ? `https://t.me/${bot}?start=${orderId}` : null,
+    });
+  } catch (error) {
+    console.error("Checkout failed:", error.message);
+    r.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/telegram/webhook", async (q, r) => {
+  try {
+    const findOrder = async (orderId) => {
+      if (!orderId) return null;
+      if (isMongoReady()) return Order.findOne({ orderId }).lean();
+      return memoryOrders.get(orderId) || null;
+    };
+    await handleTelegramUpdate(q.body || {}, { findOrder });
+    r.json({ ok: true });
+  } catch (error) {
+    console.error("Telegram webhook failed:", error.message);
+    r.status(200).json({ ok: true });
+  }
+});
+
+app.get("/api/telegram/status", (_q, r) => {
+  r.json({
+    enabled: telegramEnabled,
+    bot: process.env.TELEGRAM_BOT_USERNAME || null,
+    ordersChat: Boolean(process.env.TELEGRAM_ORDERS_CHAT_ID),
+  });
 });
 
 app.listen(port, () => {
   console.log(`Streetwear API listening on http://localhost:${port}`);
   console.log(`Database: ${isMongoReady() ? "MongoDB" : "memory"}`);
   console.log(`Storage: ${s3Enabled ? "AWS S3" : "not configured"}`);
+  console.log(`Telegram bot: ${telegramEnabled ? "enabled" : "not configured"}`);
 });

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, Volume2, VolumeX } from "lucide-react";
 
-const IG_LOGO = "/lipovoy-ig-logo.png";
+const IG_LOGO = "/logoHandwrite.svg";
+const SLIDE_MS = 8000;
 
 export default function InstagramPhone({ videos = [], username = "lipovoygym.shop" }) {
   const [index, setIndex] = useState(0);
@@ -9,6 +10,7 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
   const videoRef = useRef(null);
   const list = videos.filter((v) => v?.video);
   const current = list[index];
+  const hasMany = list.length > 1;
 
   useEffect(() => {
     setIndex(0);
@@ -21,6 +23,20 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
     node.currentTime = 0;
     node.play().catch(() => {});
   }, [index, current?.video, isMuted]);
+
+  useEffect(() => {
+    if (!hasMany) return undefined;
+
+    const go = () => setIndex((i) => (i + 1) % list.length);
+    const node = videoRef.current;
+    node?.addEventListener("ended", go);
+    const timer = window.setInterval(go, SLIDE_MS);
+
+    return () => {
+      node?.removeEventListener("ended", go);
+      window.clearInterval(timer);
+    };
+  }, [hasMany, list.length, index]);
 
   function toggleSound() {
     setIsMuted((m) => !m);
@@ -37,12 +53,12 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
   }
 
   function goNext() {
-    if (list.length < 2) return;
+    if (!hasMany) return;
     setIndex((i) => (i + 1) % list.length);
   }
 
   function goPrev() {
-    if (list.length < 2) return;
+    if (!hasMany) return;
     setIndex((i) => (i - 1 + list.length) % list.length);
   }
 
@@ -75,7 +91,6 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
                   src={current.video}
                   playsInline
                   muted={isMuted}
-                  loop
                   onClick={togglePlay}
                 />
                 <button
@@ -86,7 +101,7 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
                 >
                   {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
-                {list.length > 1 && (
+                {hasMany && (
                   <div className="igReelNav">
                     <button type="button" onClick={goPrev} aria-label="Предыдущее видео">
                       <ChevronUp size={18} />
@@ -96,7 +111,7 @@ export default function InstagramPhone({ videos = [], username = "lipovoygym.sho
                     </button>
                   </div>
                 )}
-                {list.length > 1 && (
+                {hasMany && (
                   <div className="igReelDots">
                     {list.map((item, i) => (
                       <span key={item.id || i} className={i === index ? "on" : ""} />

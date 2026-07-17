@@ -52,8 +52,13 @@ function Header({ count, open, solid, hidden, onMenuClick, user, onLogoutRequest
         <button aria-label="Меню" onClick={onMenuClick}><Menu /></button>
         <HeaderSearch open={searchOpen} onOpenChange={onSearchOpenChange} products={products} />
       </div>
-      <Link className="logo" to="/"><img src="/Lypovoi.svg" alt="Липовой" /></Link>
+      <Link className="logo logoCenter" to="/" aria-label="Липовой">
+        <img src="/logoNew.svg" alt="Липовой" />
+      </Link>
       <div className="headerRight">
+        <Link className="logo logoHandwrite" to="/" aria-label="Липовой">
+          <img src="/logoHandwrite.svg" alt="Липовой" />
+        </Link>
         {user ? (
           <div className="headerAccount">
             <span className="headerAccountName" title={user.email}>{user.name}</span>
@@ -1019,7 +1024,32 @@ function Admin({ products, refresh, settings }) {
 }
 
 function Cart({ cart, open, close, setCart }) {
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutMsg, setCheckoutMsg] = useState("");
   const sum = cart.reduce((n, x) => n + x.price * x.qty, 0);
+
+  async function checkoutViaTelegram() {
+    if (!cart.length || checkoutBusy) return;
+    setCheckoutBusy(true);
+    setCheckoutMsg("");
+    try {
+      const data = await apiFetch("/api/checkout", {
+        method: "POST",
+        body: { items: cart },
+      });
+      if (data.telegramUrl) {
+        window.open(data.telegramUrl, "_blank", "noopener,noreferrer");
+        setCheckoutMsg(`Заказ ${data.orderId} создан. Откройте Telegram и следуйте инструкции бота.`);
+      } else {
+        setCheckoutMsg(`Заказ ${data.orderId} создан. Telegram-бот ещё не настроен — напишите в поддержку.`);
+      }
+    } catch (err) {
+      setCheckoutMsg(err.message || "Не удалось оформить заказ");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
+
   return (
     <>
       <aside className={`drawer ${open ? "open" : ""}`}>
@@ -1049,8 +1079,11 @@ function Cart({ cart, open, close, setCart }) {
         {cart.length > 0 && (
           <div className="cartFooter">
             <div className="total"><span>ИТОГО</span><b>{money(sum)}</b></div>
-            <p className="taxesMsg">Налоги и доставка рассчитываются при оформлении</p>
-            <button className="checkoutBtn">ОФОРМИТЬ ЗАКАЗ</button>
+            <p className="taxesMsg">Оплата через Telegram: реквизиты → чек → подтверждение</p>
+            <button type="button" className="checkoutBtn" disabled={checkoutBusy} onClick={checkoutViaTelegram}>
+              {checkoutBusy ? "СОЗДАЁМ ЗАКАЗ…" : "ОПЛАТИТЬ В TELEGRAM"}
+            </button>
+            {checkoutMsg && <p className="checkoutHint">{checkoutMsg}</p>}
           </div>
         )}
       </aside>
@@ -1255,26 +1288,27 @@ function Shell() {
         <Route path="/admin" element={<AdminRoute><Admin products={products} settings={settings} refresh={refresh} /></AdminRoute>} />
       </Routes>
       {!location.pathname.startsWith("/admin") && <footer>
-        <div className="footerCols">
-          <div>
-            <img src="/Lypovoi.svg" alt="Липовой" className="footerLogo" />
-            <p>Больше, чем одежда — это наследие</p>
+        <div className="footerInner">
+          <div className="footerCols">
+            <div className="footerBrand">
+              <img src="/prideBlaBla.svg" alt="Липовой" className="footerLogo" />
+            </div>
+            <div className="footerCol">
+              <h3>КОМПАНИЯ</h3>
+              <Link to="/">О НАС</Link>
+              <Link to="/">КОНТАКТЫ</Link>
+              <Link to="/">МАГАЗИНЫ</Link>
+            </div>
+            <div className="footerCol">
+              <h3>ПОМОЩЬ</h3>
+              <Link to="/">ВОЗВРАТ И ОБМЕН</Link>
+              <Link to="/">ДОСТАВКА И ВОЗВРАТ</Link>
+              <Link to="/">ТАБЛИЦА РАЗМЕРОВ</Link>
+            </div>
           </div>
-          <div>
-            <h3>КОМПАНИЯ</h3>
-            <Link to="/">О НАС</Link>
-            <Link to="/">КОНТАКТЫ</Link>
-            <Link to="/">МАГАЗИНЫ</Link>
+          <div className="footerBottom">
+            <p>© 2026, Липовой. Все права защищены.</p>
           </div>
-          <div>
-            <h3>ПОМОЩЬ</h3>
-            <Link to="/">ВОЗВРАТ И ОБМЕН</Link>
-            <Link to="/">ДОСТАВКА И ВОЗВРАТ</Link>
-            <Link to="/">ТАБЛИЦА РАЗМЕРОВ</Link>
-          </div>
-        </div>
-        <div className="footerBottom">
-          <p>© 2026, Липовой. Все права защищены.</p>
         </div>
       </footer>}
       <Cart cart={cart} open={open} close={() => setOpen(false)} setCart={setCart} />
