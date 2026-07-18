@@ -1030,6 +1030,8 @@ function Cart({ cart, open, close, setCart }) {
 
   async function checkoutViaTelegram() {
     if (!cart.length || checkoutBusy) return;
+    const telegramTab = window.open("about:blank", "_blank");
+    if (telegramTab) telegramTab.opener = null;
     setCheckoutBusy(true);
     setCheckoutMsg("");
     try {
@@ -1038,12 +1040,18 @@ function Cart({ cart, open, close, setCart }) {
         body: { items: cart },
       });
       if (data.telegramUrl) {
-        window.open(data.telegramUrl, "_blank", "noopener,noreferrer");
+        if (telegramTab && !telegramTab.closed) {
+          telegramTab.location.replace(data.telegramUrl);
+        } else {
+          window.location.assign(data.telegramUrl);
+        }
         setCheckoutMsg(`Заказ ${data.orderId} создан. Откройте Telegram и следуйте инструкции бота.`);
       } else {
+        telegramTab?.close();
         setCheckoutMsg(`Заказ ${data.orderId} создан. Telegram-бот ещё не настроен — напишите в поддержку.`);
       }
     } catch (err) {
+      telegramTab?.close();
       setCheckoutMsg(err.message || "Не удалось оформить заказ");
     } finally {
       setCheckoutBusy(false);
