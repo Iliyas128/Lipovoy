@@ -71,7 +71,7 @@ const schema = new mongoose.Schema({
 },{timestamps:true});
 schema.index({ name: "text", description: "text", category: "text", slug: "text", badge: "text" });
 const Product = mongoose.models.Product || mongoose.model("Product", schema);
-const settingSchema = new mongoose.Schema({ menu: Array, catalogs: Array, reviewVideos: Array }, { timestamps: true });
+const settingSchema = new mongoose.Schema({ menu: Array, catalogs: Array, reviewVideos: Array, heroSlides: Array }, { timestamps: true });
 const Setting = mongoose.models.Setting || mongoose.model("Setting", settingSchema);
 
 const cartItemSchema = new mongoose.Schema({
@@ -142,6 +142,7 @@ let memorySettings = {
     { label: "АРХИВ", link: "/catalog/archive" },
   ],
   reviewVideos: [],
+  heroSlides: [],
 };
 
 const total = p => Object.values(p.sizes || {}).reduce((s,n)=>s+Number(n||0),0);

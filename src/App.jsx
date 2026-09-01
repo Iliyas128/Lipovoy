@@ -104,6 +104,23 @@ function Home({ products, add, onIntroComplete, settings, hasSeenIntro }) {
   const hits = (taggedHits.length ? taggedHits : products).slice(0, 8);
   const taggedNew = products.filter((p) => p.isNewArrival);
   const newest = (taggedNew.length ? taggedNew : products).slice(0, 12);
+  // Пока баннер не заполнили в админке, показываем то же фото, что было зашито в коде.
+  const configuredSlides = (settings?.heroSlides || []).filter((slide) => slide?.image);
+  const heroSlides = configuredSlides.length
+    ? configuredSlides
+    : [{ id: "default", image: "/MainHero.jpg", imageMobile: "/MainHeroMobile.jpg" }];
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    if (activeSlide > heroSlides.length - 1) setActiveSlide(0);
+  }, [heroSlides.length, activeSlide]);
+
+  useEffect(() => {
+    if (heroSlides.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => setActiveSlide((i) => (i + 1) % heroSlides.length), 6000);
+    return () => clearInterval(timer);
+  }, [heroSlides.length]);
 
   useEffect(() => {
     if (catParam) {
@@ -118,12 +135,23 @@ function Home({ products, add, onIntroComplete, settings, hasSeenIntro }) {
       <main id="main">
         <section className="hero">
           <div className="heroMedia">
-            <Link to="/catalog" className="heroSlideLink">
-              <picture>
-                <source media="(max-width: 768px)" srcSet="/MainHeroMobile.jpg" />
-                <img src="/MainHero.jpg" alt="Липовой" loading="eager" fetchPriority="high" />
-              </picture>
-            </Link>
+            <div className="heroSlider" style={{ transform: `translateX(-${activeSlide * 100}%)` }}>
+              {heroSlides.map((slide, i) => (
+                <div key={slide.id || i} className={`heroSlide ${i === activeSlide ? "active" : ""}`}>
+                  <Link to="/catalog" className="heroSlideLink">
+                    <picture>
+                      {slide.imageMobile && <source media="(max-width: 768px)" srcSet={slide.imageMobile} />}
+                      <img
+                        src={slide.image}
+                        alt="Липовой"
+                        loading={i === 0 ? "eager" : "lazy"}
+                        fetchPriority={i === 0 ? "high" : "low"}
+                      />
+                    </picture>
+                  </Link>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="heroVeil" />
           <div className="heroContent">
@@ -131,6 +159,19 @@ function Home({ products, add, onIntroComplete, settings, hasSeenIntro }) {
             <h2>Улица научила драться. Улица сделала нас.</h2>
             <Link to="/catalog" className="shopBtn">СМОТРЕТЬ КОЛЛЕКЦИЮ</Link>
           </div>
+          {heroSlides.length > 1 && (
+            <div className="heroDots">
+              {heroSlides.map((slide, i) => (
+                <button
+                  key={slide.id || i}
+                  type="button"
+                  className={i === activeSlide ? "active" : ""}
+                  onClick={() => setActiveSlide(i)}
+                  aria-label={`Фото ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         <div className="marquee border-y">
@@ -664,6 +705,8 @@ function Admin({ products, refresh, settings }) {
   const [catalogItems, setCatalogItems] = useState(settings?.catalogs?.length ? settings.catalogs : DEFAULT_CATALOGS);
   const [menuErrors, setMenuErrors] = useState({});
   const [productSearch, setProductSearch] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [heroBusy, setHeroBusy] = useState(false);
 
   useEffect(() => {
     if (settings?.menu) setMenuItems(normalizeMenu(settings.menu));
@@ -743,15 +786,18 @@ function Admin({ products, refresh, settings }) {
     refresh();
   };
 
-  const detachProductFromCatalog = async (productSlug, catalogSlug) => {
-    const p = products.find((x) => x.slug === productSlug);
+  const confirmDeleteProduct = async () => {
+    const p = deleteCandidate;
+    setDeleteCandidate(null);
     if (!p) return;
-    const catalogs = productCatalogSlugs(p).filter((s) => s !== catalogSlug);
-    if (!catalogs.length) { setMsg("Товар должен быть хотя бы в одном каталоге"); return; }
-    setMsg("Отвязываю...");
-    await apiFetch(`/api/products/${productSlug}`, { method: "PUT", body: buildProductPayload({ ...p, catalogs }) });
-    setMsg("Товар отвязан ✓");
-    refresh();
+    setMsg("Удаляю товар...");
+    try {
+      await apiFetch(`/api/products/${p.slug}`, { method: "DELETE" });
+      setMsg("Товар удалён ✓");
+      refresh();
+    } catch (err) {
+      setMsg("Не удалось удалить: " + err.message);
+    }
   };
 
   const saveMenu = async () => {
@@ -773,6 +819,43 @@ function Admin({ products, refresh, settings }) {
     await apiFetch("/api/settings", { method: "POST", body: { menu: normalized } });
     setMsg("Ссылки в меню обновлены ✓");
     refresh();
+  };
+
+  const heroSlides = settings?.heroSlides || [];
+
+  const saveHeroSlides = async (slides, message = "Баннер обновлён ✓") => {
+    await apiFetch("/api/settings", { method: "POST", body: { heroSlides: slides } });
+    setMsg(message);
+    refresh();
+  };
+
+  // index === null — добавляем новый слайд, иначе меняем фото у существующего.
+  const onHeroFile = async (e, key, index) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    setHeroBusy(true); setMsg("Загружаю фото...");
+    try {
+      const url = await uploadMedia(file, "hero", { maxSide: 2400, quality: 0.85 });
+      await saveHeroSlides(index === null
+        ? [...heroSlides, { id: `hs-${Date.now()}`, image: url, imageMobile: "" }]
+        : heroSlides.map((slide, i) => (i === index ? { ...slide, [key]: url } : slide)));
+    } catch (err) {
+      setMsg("Фото не загрузилось: " + err.message);
+    } finally {
+      setHeroBusy(false);
+    }
+  };
+
+  const removeHeroSlide = (index) => saveHeroSlides(heroSlides.filter((_, i) => i !== index), "Фото удалено ✓");
+
+  const removeHeroMobile = (index) =>
+    saveHeroSlides(heroSlides.map((slide, i) => (i === index ? { ...slide, imageMobile: "" } : slide)), "Мобильное фото убрано ✓");
+
+  const moveHeroSlide = (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= heroSlides.length) return;
+    const next = [...heroSlides];
+    [next[index], next[target]] = [next[target], next[index]];
+    saveHeroSlides(next, "Порядок изменён ✓");
   };
 
   const handleReviewVideoUpload = async (e) => {
@@ -806,6 +889,7 @@ function Admin({ products, refresh, settings }) {
     { id: "catalogs", label: "Каталоги", icon: <FolderOpen size={20} /> },
     { id: "products", label: "Товары", icon: <List size={20} /> },
     { id: "menu", label: "Меню", icon: <Menu size={20} /> },
+    { id: "hero", label: "Баннер", icon: <ImagePlus size={20} /> },
     { id: "reviews", label: "Видео-отзывы", icon: <Video size={20} /> },
   ];
 
@@ -982,6 +1066,56 @@ function Admin({ products, refresh, settings }) {
           </div>
         )}
 
+        {section === "hero" && (
+          <div className="adminSection">
+            <div className="adminSectionHead"><h1>Баннер на главной</h1></div>
+            {msg && <p className="adminMsg">{msg}</p>}
+            <p style={{ color: "var(--gray-dark)", fontSize: "14px", marginBottom: "24px" }}>
+              Фото сменяют друг друга на первом экране каждые 6 секунд. Пока список пуст, на сайте висит
+              фото из кода — добавьте свои, чтобы менять их отсюда.
+            </p>
+            <div className="heroAdminList">
+              {heroSlides.map((slide, i) => (
+                <div key={slide.id || i} className="heroAdminItem">
+                  <img className="heroAdminPreview" src={slide.image} alt="" />
+                  <div className="heroAdminBar">
+                    <span>Фото {i + 1}</span>
+                    <div className="heroAdminBtns">
+                      <button type="button" onClick={() => moveHeroSlide(i, -1)} disabled={i === 0} title="Раньше">↑</button>
+                      <button type="button" onClick={() => moveHeroSlide(i, 1)} disabled={i === heroSlides.length - 1} title="Позже">↓</button>
+                      <label className="heroAdminReplace" title="Заменить фото">
+                        <ImagePlus size={15} />
+                        <input type="file" accept="image/*" hidden disabled={heroBusy} onChange={(e) => onHeroFile(e, "image", i)} />
+                      </label>
+                      <button type="button" className="heroAdminDelete" onClick={() => removeHeroSlide(i)} title="Удалить фото"><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                  <div className="heroAdminMobile">
+                    {slide.imageMobile ? (
+                      <>
+                        <img src={slide.imageMobile} alt="" />
+                        <span>Версия для телефона</span>
+                        <button type="button" onClick={() => removeHeroMobile(i)} title="Убрать"><Trash2 size={13} /></button>
+                      </>
+                    ) : (
+                      <label>
+                        <ImagePlus size={15} />
+                        <span>Версия для телефона — необязательно</span>
+                        <input type="file" accept="image/*" hidden disabled={heroBusy} onChange={(e) => onHeroFile(e, "imageMobile", i)} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <label className={`heroAdminAdd ${heroBusy ? "busy" : ""}`}>
+                <ImagePlus size={28} />
+                <span>{heroBusy ? "Загружаю..." : "Добавить фото"}</span>
+                <input type="file" accept="image/*" hidden disabled={heroBusy} onChange={(e) => onHeroFile(e, "image", null)} />
+              </label>
+            </div>
+          </div>
+        )}
+
         {section === "reviews" && (
           <div className="adminSection">
             <div className="adminSectionHead"><h1>Видео-отзывы</h1></div>
@@ -1006,6 +1140,7 @@ function Admin({ products, refresh, settings }) {
 
       {catalogModal && catalogInModal && (
         <AdminModal title={catalogInModal.name} onClose={() => { setCatalogModal(null); setAttachSearch(""); }} wide>
+          {msg && <p className="adminMsg">{msg}</p>}
           <div className="catalogModalHead">
             <span>{modalProducts.length} {modalProducts.length === 1 ? "товар" : modalProducts.length < 5 && modalProducts.length > 0 ? "товара" : "товаров"} в каталоге</span>
             <button type="button" className="newBtn" onClick={() => openNewProduct([catalogInModal.slug])}>+ Создать товар</button>
@@ -1022,7 +1157,7 @@ function Admin({ products, refresh, settings }) {
                     </div>
                     <span className="catalogProductArrow">→</span>
                   </div>
-                  <button type="button" className="catalogDetachBtn" title="Отвязать от каталога" onClick={() => detachProductFromCatalog(p.slug, catalogInModal.slug)}>
+                  <button type="button" className="catalogDetachBtn" title="Удалить товар" onClick={() => setDeleteCandidate(p)}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -1046,6 +1181,16 @@ function Admin({ products, refresh, settings }) {
           </div>
         </AdminModal>
       )}
+
+      <ConfirmModal
+        open={Boolean(deleteCandidate)}
+        elevated
+        title="Удалить товар?"
+        message={deleteCandidate ? `«${deleteCandidate.name}» исчезнет из всех каталогов и с сайта. Отменить это будет нельзя.` : ""}
+        confirmLabel="Удалить"
+        onConfirm={confirmDeleteProduct}
+        onCancel={() => setDeleteCandidate(null)}
+      />
 
       {createCatalogOpen && (
         <AdminModal title="Новый каталог" onClose={() => setCreateCatalogOpen(false)}>

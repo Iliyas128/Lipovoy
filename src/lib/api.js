@@ -85,9 +85,9 @@ export function compressImage(file, { maxSide = MAX_IMAGE_SIDE, quality = IMAGE_
  * Товар после этого уезжает на сервер со ссылками, а не с самими картинками,
  * поэтому запрос остаётся в пределах лимита Vercel.
  */
-export async function uploadMedia(file, folder = "uploads") {
+export async function uploadMedia(file, folder = "uploads", options) {
   const dataUrl = file.type.startsWith("image/") && !RAW_IMAGE_TYPES.has(file.type)
-    ? await compressImage(file)
+    ? await compressImage(file, options)
     : await readAsDataUrl(file);
   try {
     const { url } = await apiFetch("/api/upload", { method: "POST", body: { dataUrl, folder } });

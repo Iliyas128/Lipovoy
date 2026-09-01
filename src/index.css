@@ -830,6 +830,8 @@ textarea.inputInvalid {
   padding: 28px 24px 24px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
 }
+/* Поверх модалки админки — у той оверлей z-index 9000. Правило идёт после базового. */
+.confirmModal--top { z-index: 9100; }
 .confirmModal h2 {
   font-family: var(--head);
   font-size: 22px;
@@ -1444,6 +1446,8 @@ textarea.inputInvalid {
   pointer-events: auto;
 }
 .shade--menu { z-index: 85; }
+/* Подтверждение поверх модалки админки — у той оверлей z-index 9000. */
+.shade--top { z-index: 9050; }
 
 .drawer.left-drawer {
   right: auto;
@@ -1736,6 +1740,39 @@ form textarea { min-height: 80px; resize: vertical; }
   height: 140px; border: 2px dashed var(--gray-mid); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: var(--gray-dark);
 }
 .galleryAdminAdd.busy { opacity: .55; cursor: wait; }
+
+.heroAdminList { display: flex; flex-direction: column; gap: 16px; max-width: 560px; }
+.heroAdminItem { background: #fff; border: 1px solid var(--gray-mid); }
+.heroAdminPreview { display: block; width: 100%; height: 180px; object-fit: cover; background: var(--gray-light); }
+.heroAdminBar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border-top: 1px solid var(--gray-mid);
+  font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-dark);
+}
+.heroAdminBtns { display: flex; align-items: center; gap: 6px; }
+.heroAdminBtns button, .heroAdminReplace {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; cursor: pointer;
+  background: var(--gray-light); border: 1px solid var(--gray-mid); color: var(--ink);
+}
+.heroAdminBtns button:disabled { opacity: .35; cursor: default; }
+.heroAdminDelete { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+.heroAdminMobile {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-top: 1px solid var(--gray-mid); font-size: 12px; color: var(--gray-dark);
+}
+.heroAdminMobile img { width: 40px; height: 56px; object-fit: cover; background: var(--gray-light); }
+.heroAdminMobile label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.heroAdminMobile button {
+  margin-left: auto; display: flex; padding: 6px; cursor: pointer;
+  background: var(--accent); border: 0; color: #fff;
+}
+.heroAdminAdd {
+  height: 120px; max-width: 560px; border: 2px dashed var(--gray-mid);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; color: var(--gray-dark);
+}
+.heroAdminAdd.busy { opacity: .55; cursor: wait; }
 
 .videoAdmin { margin-top: 22px; }
 .videoAdmin h3 { margin: 0 0 12px; font-family: var(--head); }
