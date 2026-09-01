@@ -45,25 +45,6 @@ app.use((req, res, next) => {
   next();
 });
 
-const seed = [
-  { slug:"jacket-core", name:"Куртка", category:"Outerwear", price:42900, color:"Graphite", accent:"#d8fb38", badge:"Drop 01", description:"Плотная уличная куртка с чистым силуэтом, матовой фурнитурой и посадкой поверх худи.", details:"Матовая плащевая ткань, усиленный ворот, свободная посадка под худи.", image:"https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}, sizeMeasures:{M:"11",L:"22",XL:"26","2XL":"22","3XL":"4","4XL":"9"}},
-  { slug:"pants-wide", name:"Штаны", category:"Bottoms", price:28900, color:"Ink Black", accent:"#ff4e38", badge:"Best stock", description:"Широкие брюки с мягким падением ткани, карманами и низкой городской посадкой.", details:"Плотный хлопок, глубокие карманы, регулируемый низ.", image:"https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}, sizeMeasures:{S:"38",M:"30",L:"62",XL:"53","2XL":"60","3XL":"23"}},
-  { slug:"shorts-utility", name:"Шорты", category:"Archive", price:16900, color:"Washed Black", accent:"#ffcd4d", badge:"Mock", description:"Архивные широкие шорты. Сейчас sold out, но карточка оставлена для вишлиста.", details:"Свободная посадка, хлопок с эффектом washed, утилитарные карманы.", image:"https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"tee-black-over", name:"Футболка Черная Овер", category:"T-Shirts", price:14900, color:"Black", accent:"#5bd7ff", badge:"Essential", description:"Базовая чёрная футболка с тяжёлым хлопком и минимальной маркировкой на груди.", details:"Оверсайз крой, стойкий чёрный цвет, тональная вышивка.", image:"https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"tee-lg-white", name:"Футболка LG белая", category:"T-Shirts", price:14900, color:"Warm White", accent:"#f3e8bf", badge:"Clean fit", description:"Белая футболка с плотным воротом, спокойной графикой и расслабленным оверсайзом.", details:"Тяжёлый хлопок 240 gsm, усиленный ворот, мягкая фактура.", image:"https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}, sizeMeasures:{S:"23",M:"45",L:"39",XL:"38","2XL":"55","3XL":"18"}},
-  { slug:"tee-lg-black", name:"Футболка LG черная", category:"T-Shirts", price:14900, color:"Black", accent:"#5bd7ff", badge:"Essential", description:"Базовая чёрная футболка с тяжёлым хлопком и минимальной маркировкой на груди.", details:"Оверсайз крой, стойкий чёрный цвет, тональная вышивка.", image:"https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}, sizeMeasures:{S:"23",M:"41",L:"40",XL:"41"}},
-  { slug:"cap-washed", name:"Бейсболка", category:"Archive", price:9900, color:"Washed Black", accent:"#333", badge:"Mock", description:"Кепка с мягкой винтажной стиркой и плотной посадкой.", details:"Хлопок, регулируемая застежка, минимальная вышивка.", image:"https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"polo-a1", name:"Поло А1", category:"Tops", price:17900, color:"Night Navy", accent:"#a78bfa", badge:"New line", description:"Поло с трикотажной фактурой, короткой планкой и аккуратной посадкой.", details:"Мягкий трикотаж, плотная посадка плеча, премиальная фурнитура.", image:"https://images.unsplash.com/photo-1516826957135-700dedea698c?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}, sizeMeasures:{M:"18",L:"30",XL:"40","2XL":"18","3XL":"7"}},
-  { slug:"hoodie-heavy-black", name:"Худи Heavy Black", category:"Outerwear", price:24900, color:"Black", accent:"#111", badge:"New", description:"Массивное худи с идеальным кроем и плотным капюшоном.", details:"Тяжёлый футер 500 gsm, двойной капюшон, свободная посадка.", image:"https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"jorts-carpenter-blue", name:"Шорты Carpenter Blue", category:"Bottoms", price:19900, color:"Washed Blue", accent:"#5c7a99", badge:"Trending", description:"Широкие джинсовые шорты с карманными деталями в стиле workwear.", details:"Плотный деним, удлиненный крой ниже колена, винтажная стирка.", image:"https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"jersey-pharos", name:"Джерси Pharos", category:"Tops", price:15900, color:"White Red", accent:"#e53935", badge:"Mock", description:"Легкое джерси с уличной графикой и спортивным вайбом.", details:"Дышащая сетка, свободная посадка, контрастные вставки.", image:"https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"balloon-jeans-black", name:"Джинсы Balloon Black", category:"Bottoms", price:27900, color:"Black", accent:"#1f1f1f", badge:"Mock", description:"Объемные джинсы с низкой посадкой и широким силуэтом.", details:"Плотный деним, мягкая стирка, свободная посадка.", image:"https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"sweatpants-orbit", name:"Штаны Orbit", category:"Bottoms", price:22900, color:"Charcoal", accent:"#777", badge:"Mock", description:"Спортивные штаны с объемным низом и спокойной графикой.", details:"Мягкий футер, регулируемый пояс, свободный крой.", image:"https://images.unsplash.com/photo-1506629905607-d9d297d48b50?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"tank-shadow", name:"Майка Shadow", category:"Tops", price:11900, color:"Gray", accent:"#8b8b8b", badge:"Mock", description:"Минималистичная майка под широкие джинсы и шорты.", details:"Плотный хлопок, глубокая пройма, прямой силуэт.", image:"https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"shirt-boxy-cream", name:"Рубашка Boxy Cream", category:"Tops", price:21900, color:"Cream", accent:"#f2e7d2", badge:"Mock", description:"Бокси-рубашка с плотной посадкой и чистым воротом.", details:"Смесовый хлопок, укороченный силуэт, матовые пуговицы.", image:"https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}},
-  { slug:"denim-thunder-wash", name:"Джинсы Thunder Wash", category:"Bottoms", price:29900, color:"Blue Wash", accent:"#6d8fb5", badge:"Mock", description:"Широкий деним с выраженной стиркой и тяжелым низом.", details:"100% хлопок, вареный эффект, свободная посадка.", image:"https://images.unsplash.com/photo-1511196044526-5cb3bcb7071b?auto=format&fit=crop&w=1400&q=88", sizes:{S:8,M:16,L:18,XL:12,"2XL":4,"3XL":0,"4XL":0}}
-];
-
 const schema = new mongoose.Schema({
   slug:{type:String,unique:true},name:String,category:String,catalogs:[String],price:Number,color:String,accent:String,badge:String,
   isHit:{type:Boolean,default:false},isNewArrival:{type:Boolean,default:false},
@@ -128,10 +109,7 @@ const defaultCatalogs = [
   { id: "archive", name: "Архив", slug: "archive" },
 ];
 
-let memory = structuredClone(seed).map((item) => ({
-  ...item,
-  catalogs: item.catalogs?.length ? item.catalogs : [CATEGORY_CATALOG[item.category]].filter(Boolean),
-}));
+let memory = [];
 let memorySettings = {
   catalogs: defaultCatalogs,
   menu: [
@@ -193,20 +171,6 @@ const cleanSettings = (doc) => {
   return x;
 };
 
-async function seedDatabase() {
-  if (!isMongoReady()) return;
-  for (const item of seed) {
-    const catalogs = [CATEGORY_CATALOG[item.category]].filter(Boolean);
-    await Product.findOneAndUpdate({ slug: item.slug }, { $set: { ...item, catalogs } }, { upsert: true });
-  }
-  const existing = await Setting.findOne();
-  if (!existing) {
-    await Setting.create(memorySettings);
-  } else if (!existing.catalogs?.length) {
-    await Setting.findOneAndUpdate({}, { $set: { catalogs: defaultCatalogs } });
-  }
-}
-
 async function seedAdminUser() {
   const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
@@ -214,9 +178,11 @@ async function seedAdminUser() {
 
   const passwordHash = await hashPassword(password);
   if (isMongoReady()) {
+    // name и cart — только при создании: этот код идёт на каждом холодном старте
+    // и раньше вычищал админу корзину и переименовывал его обратно в «Admin».
     await User.findOneAndUpdate(
       { email },
-      { $set: { email, passwordHash, name: "Admin", role: "admin", cart: [] } },
+      { $set: { email, passwordHash, role: "admin" }, $setOnInsert: { name: "Admin", cart: [] } },
       { upsert: true },
     );
     console.log(`Admin user ready: ${email}`);
@@ -272,9 +238,6 @@ async function createUser({ name, email, password }) {
 
 const mongoConnected = await connectDatabase();
 if (mongoConnected) {
-  for (const item of seed) {
-    await Product.findOneAndUpdate({ slug: item.slug }, { $set: item }, { upsert: true });
-  }
   if (!await Setting.countDocuments()) {
     await Setting.create(memorySettings);
   }
@@ -462,12 +425,18 @@ app.post("/api/products", requireAdmin, async (q, r) => {
   try {
     const raw = await persistProductMedia(q.body);
     const payload = sanitizeProductInput(raw);
+    if (!payload.slug) return r.status(400).json({ error: "slug обязателен" });
+    const taken = isMongoReady()
+      ? await Product.exists({ slug: payload.slug })
+      : memory.some((x) => x.slug === payload.slug);
+    if (taken) return r.status(409).json({ error: "Товар с таким slug уже есть" });
     const p = isMongoReady()
       ? await Product.create(payload)
       : (memory.push(payload), payload);
     r.status(201).json(clean(p));
   } catch (error) {
     console.error("Product create failed:", error.message);
+    if (error.code === 11000) return r.status(409).json({ error: "Товар с таким slug уже есть" });
     r.status(500).json({ error: error.message });
   }
 });
@@ -500,6 +469,7 @@ app.put("/api/products/:slug", requireAdmin, async (q, r) => {
     r.json(clean(p));
   } catch (error) {
     console.error("Product update failed:", error.message);
+    if (error.code === 11000) return r.status(409).json({ error: "Товар с таким slug уже есть" });
     r.status(500).json({ error: error.message });
   }
 });
@@ -515,18 +485,21 @@ app.post("/api/checkout", async (q, r) => {
     if (isMongoConfigured()) await ensureDatabase();
     const products = await all();
     const rawItems = q.body.items || [];
+    // Цену и название берём только из каталога: раньше при неизвестном slug
+    // подставлялись значения из тела запроса, и сумму заказа мог назначить кто угодно.
     const items = rawItems.map((i) => {
       const p = products.find((x) => x.slug === i.slug);
-      const qty = Math.max(1, Number(i.qty || i.quantity) || 1);
+      if (!p) return null;
       return {
-        slug: i.slug,
-        name: p?.name || i.name || i.slug,
+        slug: p.slug,
+        name: p.name,
         size: i.size || "",
-        qty,
-        price: p?.price || Number(i.price) || 0,
-        image: p?.image || i.image || "",
+        qty: Math.max(1, Number(i.qty || i.quantity) || 1),
+        price: Number(p.price) || 0,
+        image: p.image || "",
       };
-    }).filter((i) => i.slug);
+    }).filter(Boolean);
+    if (!items.length) return r.status(400).json({ error: "В корзине нет доступных товаров" });
     const total = items.reduce((s, i) => s + i.price * i.qty, 0);
     const orderId = `LP-${Date.now().toString(36).toUpperCase()}`;
     const payload = {
@@ -636,7 +609,7 @@ app.get("/api/telegram/diagnostics", async (_q, r) => {
   }
 });
 
-app.post("/api/telegram/setup-webhook", async (_q, r) => {
+app.post("/api/telegram/setup-webhook", requireAdmin, async (_q, r) => {
   try {
     const explicitUrl = String(process.env.TELEGRAM_WEBHOOK_URL || "").trim();
     const vercelDomain = String(

@@ -19,25 +19,8 @@ import { TestimonialsSection } from "./components/testimonials-section";
 import { SIZE_KEYS, productImages, hoverImage, sizeStock, sizeMeasure, firstAvailable, productTotal, money } from "./lib/productUtils";
 
 const sizes = SIZE_KEYS;
-const baseSizes = { S: 8, M: 16, L: 18, XL: 12, "2XL": 4, "3XL": 0, "4XL": 0 };
-const fallback = [
-  { slug: "jacket-core", name: "Куртка", category: "Outerwear", price: 42900, badge: "Drop 01", description: "Плотная уличная куртка с чистым силуэтом.", details: "Матовая плащевая ткань, свободная посадка.", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes, sizeMeasures: { M: "11", L: "22", XL: "26", "2XL": "22", "3XL": "4", "4XL": "9" } },
-  { slug: "pants-wide", name: "Штаны", category: "Bottoms", price: 28900, badge: "Best", description: "Широкие брюки с мягким падением ткани.", details: "Плотный хлопок, глубокие карманы.", image: "https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes, sizeMeasures: { S: "38", M: "30", L: "62", XL: "53", "2XL": "60", "3XL": "23" } },
-  { slug: "shorts-utility", name: "Шорты", category: "Archive", price: 16900, badge: "Archive", description: "Архивные широкие шорты.", details: "Washed-эффект и утилитарные карманы.", image: "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "tee-black-over", name: "Футболка Черная Овер", category: "T-Shirts", price: 14900, badge: "Essential", description: "Базовая черная футболка.", details: "Оверсайз крой, тональная вышивка.", image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "tee-lg-white", name: "Футболка LG белая", category: "T-Shirts", price: 14900, badge: "Clean", description: "Белая футболка с плотным воротом.", details: "Тяжелый хлопок 240 gsm.", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes, sizeMeasures: { S: "23", M: "45", L: "39", XL: "38", "2XL": "55", "3XL": "18" } },
-  { slug: "tee-lg-black", name: "Футболка LG черная", category: "T-Shirts", price: 14900, badge: "Essential", description: "Базовая черная футболка.", details: "Оверсайз крой, тональная вышивка.", image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes, sizeMeasures: { S: "23", M: "41", L: "40", XL: "41" } },
-  { slug: "cap-washed", name: "Бейсболка", category: "Archive", price: 9900, badge: "Mock", description: "Кепка с мягкой винтажной стиркой.", details: "Хлопок, регулируемая застежка.", image: "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "polo-a1", name: "Поло А1", category: "Tops", price: 17900, badge: "New", description: "Поло с трикотажной фактурой.", details: "Мягкий трикотаж, плотная посадка плеча.", image: "https://images.unsplash.com/photo-1516826957135-700dedea698c?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes, sizeMeasures: { M: "18", L: "30", XL: "40", "2XL": "18", "3XL": "7" } },
-  { slug: "hoodie-heavy-black", name: "Худи Heavy Black", category: "Outerwear", price: 24900, badge: "New", description: "Массивное худи с плотным капюшоном.", details: "Тяжелый футер 500 gsm.", image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "jorts-carpenter-blue", name: "Шорты Carpenter Blue", category: "Bottoms", price: 19900, badge: "Trend", description: "Джинсовые шорты в стиле workwear.", details: "Плотный деним, винтажная стирка.", image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "jersey-pharos", name: "Джерси Pharos", category: "Tops", price: 15900, badge: "Mock", description: "Легкое джерси с уличной графикой.", details: "Дышащая сетка, свободная посадка.", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "balloon-jeans-black", name: "Джинсы Balloon Black", category: "Bottoms", price: 27900, badge: "Mock", description: "Объемные джинсы с низкой посадкой.", details: "Плотный деним, широкий силуэт.", image: "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "sweatpants-orbit", name: "Штаны Orbit", category: "Bottoms", price: 22900, badge: "Mock", description: "Спортивные штаны с объемным низом.", details: "Мягкий футер, регулируемый пояс.", image: "https://images.unsplash.com/photo-1506629905607-d9d297d48b50?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "tank-shadow", name: "Майка Shadow", category: "Tops", price: 11900, badge: "Mock", description: "Минималистичная майка под широкие джинсы и шорты.", details: "Плотный хлопок, глубокая пройма.", image: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "shirt-boxy-cream", name: "Рубашка Boxy Cream", category: "Tops", price: 21900, badge: "Mock", description: "Бокси-рубашка с плотной посадкой.", details: "Смесовый хлопок, матовые пуговицы.", image: "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes },
-  { slug: "denim-thunder-wash", name: "Джинсы Thunder Wash", category: "Bottoms", price: 29900, badge: "Mock", description: "Широкий деним с выраженной стиркой.", details: "100% хлопок, вареный эффект.", image: "https://images.unsplash.com/photo-1511196044526-5cb3bcb7071b?auto=format&fit=crop&w=1400&q=88", sizes: baseSizes }
-];
+// Пока каталог не пришёл с сервера, показывать нечего — демо-товаров тут больше нет.
+const fallback = [];
 const blank = {
   slug: "", name: "", category: "", catalogs: [], price: 0, color: "Black", accent: "#111", badge: "",
   isHit: false, isNewArrival: false,
@@ -236,9 +219,11 @@ function Home({ products, add, onIntroComplete, settings, hasSeenIntro }) {
           <Link to="/catalog" className="viewAllBtn">СМОТРЕТЬ ВСЕ</Link>
         </section>
 
-        <section className="reviewsBlock" data-aos="fade-up">
-          <TestimonialsSection reviewVideos={settings?.reviewVideos || []} />
-        </section>
+        {settings?.reviewVideos?.length > 0 && (
+          <section className="reviewsBlock" data-aos="fade-up">
+            <TestimonialsSection reviewVideos={settings.reviewVideos} />
+          </section>
+        )}
       </main>
     </>
   );

@@ -1,6 +1,11 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
+// Запасной секрет лежит в открытом репозитории: с ним кто угодно подпишет себе admin-токен.
+// В проде без своего JWT_SECRET лучше не подниматься вовсе, чем тихо работать на публичном.
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET is not set");
+}
 const JWT_SECRET = process.env.JWT_SECRET || "lipovoy-dev-secret-change-me";
 const TOKEN_TTL = "30d";
 
