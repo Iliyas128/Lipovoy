@@ -104,9 +104,10 @@ export function validateMenuItems(items = []) {
   return errors;
 }
 
-export function validateVideoFile(file, { maxMb = 30 } = {}) {
+// Видео уходит прямо в S3, мимо функции Vercel, так что потолок тут наш собственный.
+export function validateVideoFile(file, { maxMb = 200 } = {}) {
   if (!file) return "Выберите файл";
   if (!file.type.startsWith("video/")) return "Нужен видеофайл (mp4, webm…)";
-  if (file.size > maxMb * 1024 * 1024) return `Файл больше ${maxMb} МБ`;
+  if (file.size > maxMb * 1024 * 1024) return `Видео больше ${maxMb} МБ — сожмите его`;
   return "";
 }

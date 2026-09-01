@@ -5,6 +5,7 @@ export async function persistProductMedia(product = {}) {
 
   next.image = await persistValue(next.image, "products");
   next.image2 = await persistValue(next.image2, "products");
+  next.video = await persistValue(next.video, "products");
 
   if (Array.isArray(next.images)) {
     next.images = await Promise.all(

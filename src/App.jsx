@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserRouter, Link, Route, Routes, useParams, useLocation, Navigate } from "react-router-dom";
-import { Menu, Minus, Plus, Save, ShoppingBag, Trash2, Truck, UserRound, X, ImagePlus, List, Video, LogOut, FolderOpen } from "lucide-react";
+import { Menu, Minus, Plus, Play, Save, ShoppingBag, Trash2, Truck, UserRound, X, ImagePlus, List, Video, LogOut, FolderOpen } from "lucide-react";
 import { useLenis } from "./hooks/useLenis";
 import Preloader from "./components/Preloader";
 import HeaderSearch from "./components/HeaderSearch";
@@ -8,7 +8,7 @@ import ConfirmModal from "./components/ConfirmModal";
 import AdminRoute from "./components/AdminRoute";
 import AuthPage from "./pages/AuthPage";
 import { AuthProvider, useAuth, loadGuestCart, saveGuestCart, clearGuestCart } from "./context/AuthContext";
-import { apiFetch, apiUrl } from "./lib/api";
+import { apiFetch, apiUrl, uploadLargeMedia, uploadMedia } from "./lib/api";
 import { validateMenuItems, validateProduct, validateVideoFile, validateCatalogs } from "./lib/validation";
 import { DEFAULT_CATALOGS, catalogLink, countCatalogProducts, slugifyCatalog, productInCatalog, productCatalogSlugs, normalizeMenu, cleanCatalogForSave, syncMenuForCatalog, removeCatalogFromMenu } from "./lib/catalogUtils";
 import AOS from "aos";
@@ -41,7 +41,7 @@ const fallback = [
 const blank = {
   slug: "", name: "", category: "", catalogs: [], price: 0, color: "Black", accent: "#111", badge: "",
   isHit: false, isNewArrival: false,
-  description: "", details: "", image: "", image2: "", images: [],
+  description: "", details: "", image: "", image2: "", images: [], video: "",
   sizeMeasures: { S: "", M: "", L: "", XL: "", "2XL": "", "3XL": "", "4XL": "" },
   sizes: { S: 0, M: 0, L: 0, XL: 0, "2XL": 0, "3XL": 0, "4XL": 0 },
 };
@@ -222,17 +222,33 @@ function Product({ products, add }) {
     );
   }
 
+  // Видео идёт последним слайдом, а не в images: иначе оно полезет в карточки и корзину.
+  const media = [
+    ...imgs.map((src) => ({ type: "image", src })),
+    ...(p.video ? [{ type: "video", src: p.video }] : []),
+  ];
+  const active = media[activeImg] || media[0];
+  const isVideo = active?.type === "video";
+
   return (
     <main className="product">
       <div className="galleryCol">
-        <div className="galleryMain" onClick={() => add(p, size)} title="Быстрое добавление">
-          <img src={imgs[activeImg] || p.image} alt={p.name} />
+        <div
+          className={`galleryMain ${isVideo ? "isVideo" : ""}`}
+          onClick={isVideo ? undefined : () => add(p, size)}
+          title={isVideo ? "" : "Быстрое добавление"}
+        >
+          {isVideo
+            ? <video src={active.src} controls playsInline preload="metadata" poster={imgs[0] || undefined} />
+            : <img src={active?.src || p.image} alt={p.name} />}
         </div>
-        {imgs.length > 1 && (
+        {media.length > 1 && (
           <div className="thumbRow">
-            {imgs.map((img, i) => (
+            {media.map((m, i) => (
               <button type="button" key={i} className={i === activeImg ? "on" : ""} onClick={() => setActiveImg(i)}>
-                <img src={img} alt="" />
+                {m.type === "video"
+                  ? <span className="thumbVideo"><Play size={18} /></span>
+                  : <img src={m.src} alt="" />}
               </button>
             ))}
           </div>
@@ -366,6 +382,7 @@ function buildProductPayload(form) {
     image: images[0] || form.image || "",
     image2: images[1] || form.image2 || "",
     images,
+    video: form.video || "",
     sizeMeasures: form.sizeMeasures || {},
     sizes: form.sizes || {},
   };
@@ -386,6 +403,9 @@ function AdminProductForm({ productSlug, products, catalogItems, onSaved, onDele
     };
   });
   const [msg, setMsg] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
   const [stockEditorOpen, setStockEditorOpen] = useState(false);
@@ -402,12 +422,40 @@ function AdminProductForm({ productSlug, products, catalogItems, onSaved, onDele
   const stock = (s, v) => setForm((f) => ({ ...f, sizes: { ...f.sizes, [s]: Math.max(0, +v || 0) } }));
   const measure = (s, v) => setForm((f) => ({ ...f, sizeMeasures: { ...f.sizeMeasures, [s]: v } }));
 
-  const addGalleryImage = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { const images = [...(form.images || []), ev.target.result]; setForm((f) => ({ ...f, images, image: images[0] || "", image2: images[1] || "" })); };
-    reader.readAsDataURL(file); e.target.value = "";
+  // Фото уезжает в S3 сразу и отдельным запросом: в самом товаре остаётся только ссылка.
+  const addGalleryImage = async (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    setUploading(true); setMsg("Загружаю фото...");
+    try {
+      const url = await uploadMedia(file, "products");
+      setForm((f) => {
+        const images = [...(f.images || []), url];
+        return { ...f, images, image: images[0] || "", image2: images[1] || "" };
+      });
+      setMsg("");
+    } catch (err) {
+      setMsg("Фото не загрузилось: " + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
+  // Видео едет прямо в S3 по подписанной ссылке — размер тут не упирается в Vercel.
+  const addProductVideo = async (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+    const fileError = validateVideoFile(file);
+    if (fileError) { setMsg(fileError); return; }
+    setVideoBusy(true); setVideoProgress(0); setMsg("Загружаю видео...");
+    try {
+      const url = await uploadLargeMedia(file, "products", setVideoProgress);
+      setForm((f) => ({ ...f, video: url }));
+      setMsg("");
+    } catch (err) {
+      setMsg("Видео не загрузилось: " + err.message);
+    } finally {
+      setVideoBusy(false);
+    }
+  };
+  const removeProductVideo = () => setForm((f) => ({ ...f, video: "" }));
   const removeGalleryImage = (i) => { const images = (form.images || []).filter((_, idx) => idx !== i); setForm((f) => ({ ...f, images, image: images[0] || "", image2: images[1] || "" })); };
   const toggleCatalog = (cs) => setForm((f) => { const list = f.catalogs || []; return { ...f, catalogs: list.includes(cs) ? list.filter((s) => s !== cs) : [...list, cs] }; });
 
@@ -456,8 +504,23 @@ function AdminProductForm({ productSlug, products, catalogItems, onSaved, onDele
                 <button type="button" onClick={() => removeGalleryImage(i)}><Trash2 size={14} /></button>
               </div>
             ))}
-            <label className="galleryAdminAdd"><ImagePlus size={28} /><span>Добавить фото</span><input type="file" accept="image/*" onChange={addGalleryImage} style={{ display: "none" }} /></label>
+            <label className={`galleryAdminAdd ${uploading ? "busy" : ""}`}><ImagePlus size={28} /><span>{uploading ? "Загружаю..." : "Добавить фото"}</span><input type="file" accept="image/*" onChange={addGalleryImage} disabled={uploading} style={{ display: "none" }} /></label>
           </div>
+        </section>
+        <section className="videoAdmin">
+          <h3>Видео товара</h3>
+          {form.video ? (
+            <div className="videoAdminItem">
+              <video src={form.video} controls playsInline preload="metadata" />
+              <button type="button" onClick={removeProductVideo}><Trash2 size={14} /></button>
+            </div>
+          ) : (
+            <label className={`videoAdminAdd ${videoBusy ? "busy" : ""}`}>
+              <Video size={28} />
+              <span>{videoBusy ? `Загружаю... ${videoProgress}%` : "Добавить видео"}</span>
+              <input type="file" accept="video/*" onChange={addProductVideo} disabled={videoBusy} style={{ display: "none" }} />
+            </label>
+          )}
         </section>
         <div className="formGrid">
           {[["Название", "name"], ["Slug", "slug"], ["Тип (необязательно)", "category"], ["Цена (₽)", "price"], ["Бейдж (NEW/SALE)", "badge"]].map(([l, k]) => (
@@ -531,7 +594,7 @@ function AdminProductForm({ productSlug, products, catalogItems, onSaved, onDele
         <label>Описание<textarea value={form.description} onChange={(e) => field("description", e.target.value)} /></label>
         <label>Детали<textarea value={form.details} onChange={(e) => field("details", e.target.value)} /></label>
         <div className="actions">
-          <button type="submit" className="saveBtn"><Save /> СОХРАНИТЬ</button>
+          <button type="submit" className="saveBtn" disabled={uploading || videoBusy}><Save /> СОХРАНИТЬ</button>
           {!isNew && <button type="button" className="deleteBtn" onClick={del}><Trash2 /> УДАЛИТЬ</button>}
           <span className="msg">{msg}</span>
         </div>
@@ -712,18 +775,19 @@ function Admin({ products, refresh, settings }) {
     refresh();
   };
 
-  const handleReviewVideoUpload = (e) => {
-    const file = e.target.files[0]; if (!file) return;
+  const handleReviewVideoUpload = async (e) => {
+    const file = e.target.files[0]; e.target.value = ""; if (!file) return;
     const fileError = validateVideoFile(file);
-    if (fileError) { setMsg(fileError); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const updated = [...(settings?.reviewVideos || []), { id: `rv-${Date.now()}`, caption: file.name.replace(/\.[^.]+$/, ""), video: ev.target.result }];
-      setMsg("Загружаю...");
+    if (fileError) { setMsg(fileError); return; }
+    setMsg("Загружаю...");
+    try {
+      const video = await uploadLargeMedia(file, "reviews");
+      const updated = [...(settings?.reviewVideos || []), { id: `rv-${Date.now()}`, caption: file.name.replace(/\.[^.]+$/, ""), video }];
       await apiFetch("/api/settings", { method: "POST", body: { reviewVideos: updated } });
       setMsg("Видео добавлено ✓"); refresh();
-    };
-    reader.readAsDataURL(file); e.target.value = "";
+    } catch (err) {
+      setMsg("Видео не загрузилось: " + err.message);
+    }
   };
 
   const removeReviewVideo = async (id) => {

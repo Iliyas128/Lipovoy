@@ -2,9 +2,9 @@ import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
 import { randomUUID } from "crypto";
-import { connectDatabase, isMongoReady } from "./server/db.js";
+import { connectDatabase, ensureDatabase, isMongoConfigured, isMongoReady } from "./server/db.js";
 import { persistProductMedia, persistSettingsMedia } from "./server/media.js";
-import { s3Enabled, uploadBuffer } from "./server/s3.js";
+import { presignUpload, s3Enabled, uploadBuffer } from "./server/s3.js";
 import {
   cleanUser,
   createAuthMiddleware,
@@ -17,7 +17,12 @@ import {
 } from "./server/auth.js";
 import { searchProducts } from "./server/search.js";
 import { validateLoginInput, validateRegisterInput } from "./server/validate.js";
-import { handleTelegramUpdate, telegramEnabled } from "./server/telegram.js";
+import {
+  getTelegramDiagnostics,
+  handleTelegramUpdate,
+  setTelegramWebhook,
+  telegramEnabled,
+} from "./server/telegram.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -62,7 +67,7 @@ const seed = [
 const schema = new mongoose.Schema({
   slug:{type:String,unique:true},name:String,category:String,catalogs:[String],price:Number,color:String,accent:String,badge:String,
   isHit:{type:Boolean,default:false},isNewArrival:{type:Boolean,default:false},
-  description:String,details:String,image:String,image2:String,images:[String],sizeMeasures:Object,sizes:Object
+  description:String,details:String,image:String,image2:String,images:[String],video:String,sizeMeasures:Object,sizes:Object
 },{timestamps:true});
 schema.index({ name: "text", description: "text", category: "text", slug: "text", badge: "text" });
 const Product = mongoose.models.Product || mongoose.model("Product", schema);
@@ -96,6 +101,13 @@ const orderSchema = new mongoose.Schema({
   total: Number,
   status: { type: String, default: "awaiting_payment" },
   userEmail: String,
+  telegramChatId: { type: String, index: true },
+  telegramUsername: String,
+  telegramName: String,
+  telegramStage: String,
+  customerName: String,
+  customerPhone: String,
+  deliveryAddress: String,
 }, { timestamps: true });
 const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
 const memoryOrders = new Map();
@@ -155,6 +167,7 @@ function sanitizeProductInput(body = {}) {
     image: body.image || images[0] || "",
     image2: body.image2 || images[1] || "",
     images,
+    video: typeof body.video === "string" ? body.video : "",
     sizeMeasures: body.sizeMeasures || {},
     sizes: body.sizes || {},
   };
@@ -404,6 +417,20 @@ app.post("/api/upload", requireAdmin, async (q, r) => {
   }
 });
 
+app.post("/api/upload-url", requireAdmin, async (q, r) => {
+  try {
+    if (!s3Enabled) {
+      return r.status(503).json({ error: "S3 is not configured" });
+    }
+    const { contentType, folder = "uploads" } = q.body || {};
+    if (!contentType) return r.status(400).json({ error: "contentType is required" });
+    r.json(await presignUpload(contentType, folder));
+  } catch (error) {
+    console.error("Presign failed:", error.message);
+    r.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/products/search", async (q, r) => {
   try {
     const items = await searchProducts({
@@ -484,6 +511,7 @@ app.delete("/api/products/:slug", requireAdmin, async (q, r) => {
 
 app.post("/api/checkout", async (q, r) => {
   try {
+    if (isMongoConfigured()) await ensureDatabase();
     const products = await all();
     const rawItems = q.body.items || [];
     const items = rawItems.map((i) => {
@@ -526,12 +554,62 @@ app.post("/api/checkout", async (q, r) => {
 
 app.post("/api/telegram/webhook", async (q, r) => {
   try {
+    // Cold starts / dropped pools on Vercel: re-open Mongo before order lookups.
+    // Never fall back to empty in-memory orders when MONGO_URI is configured —
+    // that caused "order shown on /start, then Не нашёл активный заказ" on the next message.
+    if (isMongoConfigured()) {
+      const ready = await ensureDatabase();
+      if (!ready) {
+        console.error("Telegram webhook: MongoDB unavailable");
+        r.status(200).json({ ok: true });
+        return;
+      }
+    }
+
     const findOrder = async (orderId) => {
       if (!orderId) return null;
       if (isMongoReady()) return Order.findOne({ orderId }).lean();
+      if (isMongoConfigured()) return null;
       return memoryOrders.get(orderId) || null;
     };
-    await handleTelegramUpdate(q.body || {}, { findOrder });
+    const findOrderByChat = async (chatId) => {
+      const id = String(chatId || "");
+      if (!id) return null;
+      if (isMongoReady()) {
+        const asNumber = Number(id);
+        const chatIds = Number.isFinite(asNumber) && String(asNumber) === id
+          ? [id, asNumber]
+          : [id];
+        return Order.findOne({ telegramChatId: { $in: chatIds } })
+          .sort({ updatedAt: -1 })
+          .lean();
+      }
+      if (isMongoConfigured()) return null;
+      return [...memoryOrders.values()]
+        .filter((order) => String(order.telegramChatId) === id)
+        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
+    };
+    const updateOrder = async (orderId, patch) => {
+      if (!orderId) return null;
+      if (isMongoReady()) {
+        return Order.findOneAndUpdate(
+          { orderId },
+          { $set: patch },
+          { new: true },
+        ).lean();
+      }
+      if (isMongoConfigured()) return null;
+      const current = memoryOrders.get(orderId);
+      if (!current) return null;
+      const next = { ...current, ...patch, updatedAt: new Date() };
+      memoryOrders.set(orderId, next);
+      return next;
+    };
+    await handleTelegramUpdate(q.body || {}, {
+      findOrder,
+      findOrderByChat,
+      updateOrder,
+    });
     r.json({ ok: true });
   } catch (error) {
     console.error("Telegram webhook failed:", error.message);
@@ -545,6 +623,37 @@ app.get("/api/telegram/status", (_q, r) => {
     bot: process.env.TELEGRAM_BOT_USERNAME || null,
     ordersChat: Boolean(process.env.TELEGRAM_ORDERS_CHAT_ID),
   });
+});
+
+app.get("/api/telegram/diagnostics", async (_q, r) => {
+  try {
+    r.setHeader("Cache-Control", "no-store");
+    r.json(await getTelegramDiagnostics());
+  } catch (error) {
+    console.error("Telegram diagnostics failed:", error.message);
+    r.status(500).json({ error: "Telegram diagnostics failed" });
+  }
+});
+
+app.post("/api/telegram/setup-webhook", async (_q, r) => {
+  try {
+    const explicitUrl = String(process.env.TELEGRAM_WEBHOOK_URL || "").trim();
+    const vercelDomain = String(
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+      process.env.VERCEL_URL ||
+      "back-lipovoy.vercel.app",
+    ).trim();
+    const baseUrl = explicitUrl
+      ? explicitUrl.replace(/\/api\/telegram\/webhook\/?$/, "")
+      : `${vercelDomain.startsWith("http") ? "" : "https://"}${vercelDomain}`.replace(/\/$/, "");
+    const webhookUrl = explicitUrl || `${baseUrl}/api/telegram/webhook`;
+
+    r.setHeader("Cache-Control", "no-store");
+    r.json(await setTelegramWebhook(webhookUrl));
+  } catch (error) {
+    console.error("Telegram webhook setup failed:", error.message);
+    r.status(500).json({ error: error.message });
+  }
 });
 
 export default app;

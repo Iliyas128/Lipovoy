@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
 const bucket = process.env.S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME;
@@ -60,6 +61,25 @@ export async function uploadBuffer(buffer, mime, folder = "uploads") {
   );
 
   return publicUrl(key);
+}
+
+/**
+ * Ссылка, по которой браузер зальёт файл прямо в S3, минуя наш сервер.
+ * Нужна для видео: Vercel рубит любой запрос к функции на 4.5 МБ.
+ */
+export async function presignUpload(mime, folder = "uploads") {
+  if (!s3Enabled || !client) {
+    throw new Error("S3 is not configured");
+  }
+
+  const key = `${folder}/${Date.now()}-${randomUUID()}.${extFromMime(mime)}`;
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: mime }),
+    { expiresIn: 900 },
+  );
+
+  return { uploadUrl, publicUrl: publicUrl(key), key };
 }
 
 export async function uploadDataUrl(dataUrl, folder = "uploads") {
