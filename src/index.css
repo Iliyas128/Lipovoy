@@ -503,9 +503,6 @@ header button:hover, .userLink:hover { opacity: 0.6; }
   position: relative;
   z-index: 3;
 }
-/* Выдуманных отзывов больше нет — в блоке остался один телефон с реальными видео. */
-.testimonialsBody--phoneOnly { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.testimonialsBody--phoneOnly .testimonialsPhoneCol { justify-self: center; }
 .testimonialsSliders {
   display: flex;
   justify-content: flex-end;

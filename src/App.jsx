@@ -219,11 +219,9 @@ function Home({ products, add, onIntroComplete, settings, hasSeenIntro }) {
           <Link to="/catalog" className="viewAllBtn">СМОТРЕТЬ ВСЕ</Link>
         </section>
 
-        {settings?.reviewVideos?.length > 0 && (
-          <section className="reviewsBlock" data-aos="fade-up">
-            <TestimonialsSection reviewVideos={settings.reviewVideos} />
-          </section>
-        )}
+        <section className="reviewsBlock" data-aos="fade-up">
+          <TestimonialsSection reviewVideos={settings?.reviewVideos || []} />
+        </section>
       </main>
     </>
   );
@@ -810,6 +808,13 @@ function Admin({ products, refresh, settings }) {
 
   const saveHeroSlides = async (slides, message = "Баннер обновлён ✓") => {
     await apiFetch("/api/settings", { method: "POST", body: { heroSlides: slides } });
+    // Бэкенд, в схеме которого нет heroSlides, молча выбросит поле и всё равно ответит ok.
+    // Поэтому верим не ответу, а тому, что реально вернулось из настроек.
+    const saved = await apiFetch("/api/settings");
+    if ((saved.heroSlides || []).length !== slides.length) {
+      setMsg("Сервер не сохранил баннер — похоже, на бэкенде старая версия");
+      return;
+    }
     setMsg(message);
     refresh();
   };
