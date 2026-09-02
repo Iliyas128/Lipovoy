@@ -94,7 +94,7 @@ export default function HeaderSearch({ open, onOpenChange, products }) {
         </button>
       </div>
       {open && query.trim() && (
-        <div className="headerSearchDropdown">
+        <div className="headerSearchDropdown" data-lenis-prevent>
           {loading && <p className="headerSearchHint">Ищем…</p>}
           {!loading && results.length === 0 && (
             <p className="headerSearchHint">Ничего не найдено</p>

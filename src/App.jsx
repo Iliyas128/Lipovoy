@@ -382,7 +382,7 @@ function AdminModal({ title, onClose, children, wide }) {
           <h2>{title}</h2>
           <button type="button" onClick={onClose}><X size={20} /></button>
         </div>
-        <div className="adminModalBody">{children}</div>
+        <div className="adminModalBody" data-lenis-prevent>{children}</div>
       </div>
     </div>
   );
@@ -886,7 +886,7 @@ function Admin({ products, refresh, settings }) {
   if (editProduct !== null) {
     return (
       <main className="admin adminV2">
-        <nav className="adminNav">
+        <nav className="adminNav" data-lenis-prevent>
           <Link to="/" className="adminNavLogo"><img src="/Lypovoi.svg" alt="Липовой" /></Link>
           {navItems.map((n) => (
             <button key={n.id} type="button" className={`adminNavItem ${section === n.id ? "active" : ""}`} onClick={() => { setSection(n.id); setEditProduct(null); }}>
@@ -921,7 +921,7 @@ function Admin({ products, refresh, settings }) {
 
   return (
     <main className="admin adminV2">
-      <nav className="adminNav">
+      <nav className="adminNav" data-lenis-prevent>
         <Link to="/" className="adminNavLogo"><img src="/Lypovoi.svg" alt="Липовой" /></Link>
         {navItems.map((n) => (
           <button key={n.id} type="button" className={`adminNavItem ${section === n.id ? "active" : ""}`} onClick={() => { setSection(n.id); }}>
@@ -1157,10 +1157,10 @@ function Admin({ products, refresh, settings }) {
           <div className="catalogAttachSection">
             <h4>Привязать существующий товар</h4>
             <input className="adminSearch" type="search" placeholder="Поиск товара…" value={attachSearch} onChange={(e) => setAttachSearch(e.target.value)} />
-            <div className="catalogAttachList">
+            <div className="catalogAttachList" data-lenis-prevent>
               {attachableProducts.length === 0 ? (
                 <p className="catalogAttachEmpty">{attachSearch ? "Ничего не найдено" : "Все товары уже в этом каталоге"}</p>
-              ) : attachableProducts.slice(0, 8).map((p) => (
+              ) : attachableProducts.slice(0, 40).map((p) => (
                 <button key={p.slug} type="button" className="catalogAttachRow" onClick={() => attachProductToCatalog(p.slug, catalogInModal.slug)}>
                   {p.image ? <img src={p.image} alt="" /> : <div className="catalogProductNoImg"><ImagePlus size={16} /></div>}
                   <span>{p.name}</span>

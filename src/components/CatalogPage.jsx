@@ -171,7 +171,7 @@ export default function CatalogPage({ products, settings }) {
           </div>
           <button type="button" onClick={() => setFilterOpen(false)} aria-label="Закрыть фильтр"><X size={22} /></button>
         </div>
-        <div className="catalogFilterDrawerBody">
+        <div className="catalogFilterDrawerBody" data-lenis-prevent>
           <div className="catalogFilterGroup">
             <button type="button" className="catalogFilterRow" onClick={() => setExpanded(expanded === "catalogs" ? null : "catalogs")}>
               <span>Каталоги</span>
